@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kobul Online</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- Firebase (compat build, gampang dipake tanpa build tool) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --felt: #1F4D3D;
+    --felt-dark: #12362B;
+    --felt-light: #2C6B54;
+    --wood: #6B4226;
+    --wood-dark: #4A2C19;
+    --paper: #FBF8F0;
+    --ink: #211D18;
+    --gold: #D4AF37;
+    --gold-dim: #8C7326;
+    --red-suit: #B23A2E;
+    --muted: #C9C2A8;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; min-height:100vh;
+    font-family:'Work Sans', sans-serif;
+    color: var(--paper);
+    background: var(--wood-dark);
+    display:flex; align-items:center; justify-content:center;
+    padding: 18px;
+  }
+  .table{
+    width:100%; max-width: 920px;
+    background: radial-gradient(ellipse 120% 80% at 50% 0%, var(--felt-light), var(--felt) 55%, var(--felt-dark) 100%);
+    border: 10px solid var(--wood);
+    border-radius: 28px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.5), inset 0 0 60px rgba(0,0,0,0.25);
+    padding: 22px;
+    position: relative;
+  }
+  h1.title{
+    font-family:'Bitter', serif; font-weight:700; text-align:center;
+    letter-spacing: 0.04em; font-size: clamp(26px, 5vw, 34px);
+    margin: 0 0 4px; color: var(--gold); text-shadow: 0 2px 0 rgba(0,0,0,0.3);
+  }
+  .subtitle{ text-align:center; color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+
+  .screen{ display:none; }
+  .screen.active{ display:block; }
+
+  .field{ margin: 10px auto; max-width: 320px; text-align:left; }
+  .field label{ display:block; font-size:12px; color:var(--muted); margin-bottom:4px; font-family:'JetBrains Mono', monospace; }
+  .field input, .field select{
+    width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.25); color: var(--paper); font-size:15px; font-family:'JetBrains Mono', monospace;
+  }
+  .center-col{ text-align:center; padding: 10px 10px 6px; }
+  .center-col p{ color: var(--muted); font-size:14px; line-height:1.6; max-width:480px; margin: 0 auto 16px;}
+  .btn-main{
+    font-family:'Work Sans', sans-serif; font-weight:600; font-size: 15px;
+    padding: 13px 28px; border-radius: 12px; border:none; cursor:pointer;
+    background: var(--gold); color: #2A2205; margin: 4px;
+  }
+  .btn-main:hover{ filter: brightness(1.07); }
+  .btn-main:disabled{ opacity:.4; cursor:not-allowed; }
+  .btn-ghost{
+    font-family:'Work Sans', sans-serif; font-size: 13px; padding: 9px 16px;
+    border-radius: 10px; border: 1px solid rgba(255,255,255,0.25);
+    background: transparent; color: var(--paper); cursor:pointer; margin: 4px;
+  }
+  .btn-ghost:disabled{ opacity:.35; cursor:not-allowed; }
+  .home-choice{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin: 14px 0; }
+  .home-card{
+    background: rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.12); border-radius:14px;
+    padding: 16px; width: 220px;
+  }
+  .home-card h3{ margin:0 0 8px; font-family:'Bitter',serif; color:var(--gold); font-size:16px; }
+
+  .room-code-display{
+    font-family:'JetBrains Mono', monospace; font-size: 30px; letter-spacing: 0.15em;
+    color: var(--gold); text-align:center; margin: 8px 0 4px; font-weight:700;
+  }
+  .lobby-players{ max-width:360px; margin: 14px auto; text-align:left; }
+  .lobby-players .seat-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 8px 12px; border-radius: 10px; background: rgba(0,0,0,0.18); margin-bottom:6px;
+    font-family:'JetBrains Mono', monospace; font-size:13px;
+  }
+  .lobby-players .seat-row.me{ outline: 2px solid var(--gold); }
+  .seat-empty{ color: var(--muted); opacity:.6; }
+
+  .opponents-row{ display:flex; gap: 14px; justify-content:center; flex-wrap:wrap; margin-bottom: 18px; }
+  .opp{ background: rgba(0,0,0,0.18); border-radius: 14px; padding: 10px; text-align:center; min-width:96px; }
+  .opp.active-turn{ box-shadow: 0 0 0 2px var(--gold); }
+  .opp-name{ font-family:'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing:0.05em; }
+  .opp-cards{ display:grid; grid-template-columns: repeat(2,1fr); gap:4px; }
+
+  .center-row{ display:flex; align-items:center; justify-content:center; gap: 26px; margin: 10px 0 22px; }
+  .pile-label{ font-family:'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-align:center; margin-top:6px; }
+  .pile-stack{ text-align:center; position:relative; }
+  .drawn-card-zone{ min-height: 96px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; }
+
+  .player-area{ background: rgba(0,0,0,0.15); border-radius: 16px; padding: 14px; }
+  .player-area.active-turn{ box-shadow: 0 0 0 2px var(--gold); }
+  .player-label{ font-family:'JetBrains Mono', monospace; font-size: 12px; color: var(--gold); text-align:center; margin-bottom: 10px; letter-spacing:0.06em; }
+  .player-cards{ display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-width: 260px; margin: 0 auto 16px; }
+
+  .card{
+    width: 62px; height: 88px; border-radius: 8px; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Bitter', serif; font-weight:700; font-size: 20px;
+    cursor:default; user-select:none; transition: transform .15s ease, box-shadow .15s ease; flex-shrink:0;
+  }
+  .opp .card{ width:36px; height:52px; font-size:12px; }
+  .card-back{ background: linear-gradient(145deg, #17402F, #0F2E22); border: 2px solid var(--gold-dim); }
+  .card-back::before{ content:'♠ ♥\A ♦ ♣'; white-space:pre; font-family:'JetBrains Mono', monospace; font-size: 8px; color: rgba(212,175,55,0.55); text-align:center; line-height:1.5; }
+  .opp .card-back::before{ font-size:6px; }
+  .card-front{ background: var(--paper); color: var(--ink); border: 2px solid rgba(0,0,0,0.15); flex-direction: column; }
+  .card-front.red{ color: var(--red-suit); }
+  .card-front.power{ border-color: var(--gold); box-shadow: 0 0 10px rgba(212,175,55,0.5); }
+  .card-front .rank{ font-size: 18px; line-height:1; }
+  .card-front .suit{ font-size: 14px; margin-top:2px; }
+  .card-front .val{ position:absolute; bottom:3px; right:5px; font-family:'JetBrains Mono', monospace; font-size: 9px; color: #6a6455; }
+  .card.clickable{ cursor:pointer; }
+  .card.clickable:hover{ transform: translateY(-4px); }
+  .card.selected{ outline: 3px solid var(--gold); outline-offset:2px; }
+  .card.drawn-highlight{ box-shadow: 0 0 16px 4px rgba(212,175,55,0.7); }
+  .card-empty{ background: rgba(255,255,255,0.03); border: 2px dashed rgba(255,255,255,0.18); }
+  @keyframes touchPulse{ from{ box-shadow: 0 0 0 2px rgba(212,175,55,0.85); } to{ box-shadow: 0 0 15px 5px rgba(212,175,55,0.85); } }
+  .card.touched{ animation: touchPulse 0.85s ease-in-out infinite alternate; }
+
+  .actions{ display:flex; gap: 10px; justify-content:center; flex-wrap:wrap; margin-top: 10px; }
+  .prompt-text{ text-align:center; font-size: 13px; color: var(--muted); margin: 8px 0; min-height: 18px; }
+  .log-panel{ margin-top: 16px; background: rgba(0,0,0,0.22); border-radius: 12px; padding: 10px 14px; max-height: 110px; overflow-y:auto; font-family:'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); line-height: 1.7; }
+
+  .modal-overlay{ position:fixed; inset:0; background: rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index: 50; padding: 16px; }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{ background: var(--paper); color: var(--ink); border-radius: 16px; padding: 22px; max-width: 420px; width:100%; text-align:center; }
+  .modal-box h3{ font-family:'Bitter', serif; margin: 0 0 10px; color: var(--felt-dark); }
+  .modal-box p{ font-size: 14px; line-height:1.6; margin: 0 0 16px; }
+  .results-list{ text-align:left; font-size:14px; margin-bottom:16px; }
+  .results-list .row{ display:flex; justify-content:space-between; padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.08); font-family:'JetBrains Mono', monospace; }
+  .results-list .row.winner{ color: var(--felt); font-weight:700; }
+
+  .memorize-overlay{
+    position:fixed; inset:0; background: rgba(10,20,15,0.94); z-index:40;
+    display:none; align-items:center; justify-content:center; padding:20px;
+  }
+  .memorize-overlay.show{ display:flex; }
+  .memorize-box{ text-align:center; max-width:360px; }
+  .memorize-box p{ color:var(--muted); font-size:14px; line-height:1.6; margin-bottom:18px; }
+
+  .setup-warning{
+    max-width:520px; margin: 16px auto; background: rgba(178,58,46,0.18); border:1px solid var(--red-suit);
+    border-radius:12px; padding:14px 16px; font-size:13px; line-height:1.6; text-align:left;
+  }
+  .setup-warning code{ background: rgba(0,0,0,0.3); padding:2px 6px; border-radius:6px; }
+
+  @media (max-width: 480px){ .card{ width:52px; height:74px; font-size:16px; } .card-front .rank{ font-size:15px; } }
+</style>
+</head>
+<body>
+
+<div class="table">
+  <h1 class="title">KOBUL <span style="font-size:14px; color:var(--muted);">ONLINE</span></h1>
+  <div class="subtitle">multiplayer beda device — total angka sekecil mungkin, atau berani "kobul" duluan?</div>
+
+  <div id="setupWarning" class="setup-warning" style="display:none;">
+    ⚠️ <b>Firebase belum disetel.</b> Buka file ini pakai teks editor, cari bagian <code>firebaseConfig</code> di dalam &lt;script&gt;,
+    lalu ganti dengan config dari project Firebase kamu sendiri (Firebase Console → Project Settings → General → Your apps → SDK setup and configuration).
+    Pastikan juga <b>Realtime Database</b> udah diaktifkan (mode test aja cukup buat main bareng temen).
+  </div>
+
+  <!-- HOME -->
+  <div class="screen active" id="screenHome">
+    <div class="center-col">
+      <p>Bikin room lalu bagikan kodenya ke temen-temen kamu, atau masukin kode buat gabung ke room yang udah ada. Setiap orang main dari device masing-masing.</p>
+    </div>
+    <div class="field">
+      <label>Nama kamu</label>
+      <input id="inputName" type="text" placeholder="Nama kamu" maxlength="16">
+    </div>
+    <div class="home-choice">
+      <div class="home-card">
+        <h3>Bikin Room</h3>
+        <div class="field">
+          <label>Jumlah pemain</label>
+          <select id="inputMaxPlayers">
+            <option value="2">2 pemain</option>
+            <option value="3" selected>3 pemain</option>
+            <option value="4">4 pemain</option>
+          </select>
+        </div>
+        <button class="btn-main" onclick="uiCreateRoom()">Buat Room</button>
+      </div>
+      <div class="home-card">
+        <h3>Gabung Room</h3>
+        <div class="field">
+          <label>Kode room</label>
+          <input id="inputJoinCode" type="text" placeholder="cth: KTQ7" maxlength="6" style="text-transform:uppercase;">
+        </div>
+        <button class="btn-main" onclick="uiJoinRoom()">Gabung</button>
+      </div>
+    </div>
+    <div class="prompt-text" id="homeError"></div>
+  </div>
+
+  <!-- LOBBY -->
+  <div class="screen" id="screenLobby">
+    <div class="center-col">
+      <p>Bagikan kode ini ke temen-temen kamu:</p>
+    </div>
+    <div class="room-code-display" id="lobbyRoomCode">----</div>
+    <div class="lobby-players" id="lobbyPlayers"></div>
+    <div class="center-col">
+      <p id="lobbyHint" style="margin-top:0;"></p>
+      <button class="btn-main" id="lobbyStartBtn" onclick="uiStartGame()" style="display:none;">Mulai Main</button>
+      <button class="btn-ghost" onclick="uiLeaveToHome()">Keluar Room</button>
+    </div>
+  </div>
+
+  <!-- BOARD -->
+  <div class="screen" id="screenBoard">
+    <div class="opponents-row" id="opponentsRow"></div>
+    <div class="center-row">
+      <div class="pile-stack">
+        <div class="card card-back" id="drawPileEl" onclick="onDrawPileClick()"></div>
+        <div class="pile-label" id="drawCountLabel">Tumpuk</div>
+      </div>
+      <div class="drawn-card-zone" id="drawnZone"></div>
+      <div class="pile-stack">
+        <div id="discardTop"></div>
+        <div class="pile-label">Buangan</div>
+      </div>
+    </div>
+    <div class="prompt-text" id="promptText"></div>
+    <div class="actions" id="actionButtons"></div>
+    <div class="player-area" id="playerArea">
+      <div class="player-label" id="playerLabel">KAMU</div>
+      <div class="player-cards" id="playerCards"></div>
+    </div>
+    <div class="log-panel" id="logPanel"></div>
+    <div class="center-col">
+      <button class="btn-ghost" onclick="uiLeaveToHome()">Keluar Room</button>
+    </div>
+  </div>
+</div>
+
+<div class="memorize-overlay" id="memorizeOverlay">
+  <div class="memorize-box">
+    <p id="memorizeText">Klik untuk intip 2 kartu bawahmu sebelum mulai main. Cuma kamu yang bisa lihat ini.</p>
+    <div id="memorizeCards" style="display:flex; gap:10px; justify-content:center; margin-bottom:16px;"></div>
+    <button class="btn-main" id="memorizeBtn" onclick="onMemorizeClick()">Lihat 2 Kartu Bawah</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<script>
+/* =======================================================================
+   SETUP — GANTI BAGIAN INI DENGAN CONFIG FIREBASE PROJECT KAMU SENDIRI
+   Firebase Console -> Project Settings -> General -> SDK setup & config
+   Pastikan Realtime Database sudah dibuat (mode test cukup buat main bareng temen).
+   ======================================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBzxvarxBdI8immPJ_xOELhfM5oa6vm0Tg",
+  databaseURL: "https://kobul-game-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "kobul-game"
+};
+/* ======================================================================= */
+
+let db = null;
+let firebaseReady = false;
+try{
+  if(firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf('PASTE_')!==0){
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    firebaseReady = true;
+  }
+}catch(e){ console.error('Firebase init error', e); }
+
+if(!firebaseReady){
+  document.getElementById('setupWarning').style.display = 'block';
+}
+
+/* ---------------- Card data (sama seperti versi solo) ---------------- */
+const SUITS = ['♠','♥','♦','♣'];
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+
+function cardValue(rank,suit){
+  if(rank==='JOKER') return 0;
+  if(rank==='A') return 1;
+  if(rank==='K') return (suit==='♠'||suit==='♣') ? 13 : -1;
+  if(rank==='J') return 11;
+  if(rank==='Q') return 12;
+  return parseInt(rank,10);
+}
+function cardPower(rank,suit){
+  if(rank==='7'||rank==='8') return 'peekSelf';
+  if(rank==='9'||rank==='10') return 'peekOpponent';
+  if(rank==='J'||rank==='Q') return 'blindSwap';
+  if(rank==='K' && (suit==='♠'||suit==='♣')) return 'peekSwap';
+  return null;
+}
+function isRed(suit){ return suit==='♥'||suit==='♦'; }
+
+function buildDeck(){
+  const deck = [];
+  for(const s of SUITS){
+    for(const r of RANKS){
+      deck.push({rank:r, suit:s, value:cardValue(r,s), power:cardPower(r,s)});
+    }
+  }
+  deck.push({rank:'JOKER', suit:'★', value:0, power:null});
+  deck.push({rank:'JOKER', suit:'★', value:0, power:null});
+  return deck;
+}
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]] = [arr[j],arr[i]];
+  }
+  return arr;
+}
+function cardLabel(c){ if(c.rank==='JOKER') return 'Joker'; return c.rank+c.suit; }
+function cardFrontHTML(c){
+  const red = isRed(c.suit) ? 'red':'';
+  const power = c.power ? 'power':'';
+  const label = c.rank==='JOKER' ? 'JKR' : c.rank;
+  const suit = c.rank==='JOKER' ? '★' : c.suit;
+  return `<div class="card-front ${red} ${power}">
+    <div class="rank">${label}</div>
+    <div class="suit">${suit}</div>
+    <div class="val">${c.value}</div>
+  </div>`;
+}
+function slotLabel(slot){
+  return ['kiri atas','kanan atas','kiri bawah','kanan bawah'][slot] || ('slot '+(slot+1));
+}
+
+/* ---------------- Identitas lokal (per device/tab, cuma hidup selama sesi ini) ---------------- */
+const myId = 'p_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+let myName = '';
+let roomCode = null;
+let mySeat = null;
+let room = null; // cache terakhir dari Firebase listener — SATU-SATUNYA sumber kebenaran soal state game
+let roomRef = null;
+
+/* state lokal murni per-device, TIDAK disinkron ke Firebase (biar kartu orang lain gak ke-leak) */
+let local = {
+  tempReveal: null,       // { seat, slot } — kartu yang lagi diintip DI DEVICE INI aja
+  memorizeRevealed: false,
+  memorizeDone: false,
+};
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if(el) el.classList.add('active');
+}
+
+/* ---------------- Helpers umum ---------------- */
+function seatName(r, seat){
+  const s = r && r.seats && r.seats[seat];
+  return s ? s.name : ('Pemain '+(seat+1));
+}
+function countCardsInHand(hand){ return normalizeHand(hand).filter(c=>!!c).length; }
+function findEmptySlot(hand){ return normalizeHand(hand).findIndex(c=>!c); }
+/* PENTING: Firebase Realtime Database gak bisa nyimpen `null` di tengah array biasa —
+   begitu salah satu slot tangan diisi null (misal kena buang kembar), Firebase otomatis
+   ubah data itu jadi OBJECT berkey angka ({0:.., 1:.., 3:..}) bukan Array beneran.
+   Fungsi ini menormalkan balik jadi Array 4 slot yang konsisten, apapun bentuk aslinya. */
+function normalizeHand(h){
+  const out = [null,null,null,null];
+  if(!h) return out;
+  const keys = Array.isArray(h) ? h.map((_,i)=>i) : Object.keys(h).map(Number);
+  const maxIdx = keys.length ? Math.max(3, ...keys) : 3;
+  for(let i=0;i<=maxIdx;i++){ out[i] = (h[i]!==undefined ? h[i] : null); }
+  return out;
+}
+function appendLog(log, msg){
+  const arr = (log||[]).slice();
+  arr.unshift(msg);
+  if(arr.length>40) arr.length = 40;
+  return arr;
+}
+function topDiscardOf(r){ return r.discard && r.discard.length ? r.discard[r.discard.length-1] : null; }
+
+function patch(updates){
+  if(!roomRef) return;
+  roomRef.update(updates).catch(e=>console.error('patch error', e));
+}
+
+/* ======================================================================
+   LOBBY — bikin / gabung room
+   ====================================================================== */
+function genRoomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for(let i=0;i<4;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+function uiCreateRoom(){
+  if(!firebaseReady){ showHomeError('Firebase belum disetel — lihat peringatan di atas.'); return; }
+  const name = (document.getElementById('inputName').value || '').trim();
+  if(!name){ showHomeError('Isi nama kamu dulu.'); return; }
+  const maxPlayers = parseInt(document.getElementById('inputMaxPlayers').value, 10);
+  myName = name;
+  attemptCreate(maxPlayers, 0);
+}
+
+function attemptCreate(maxPlayers, tries){
+  if(tries>5){ showHomeError('Gagal bikin room, coba lagi.'); return; }
+  const code = genRoomCode();
+  const ref = db.ref('rooms/'+code);
+  ref.once('value').then(snap=>{
+    if(snap.exists()){ attemptCreate(maxPlayers, tries+1); return; }
+    const initialRoom = {
+      hostId: myId,
+      status: 'waiting',
+      maxPlayers: maxPlayers,
+      createdAt: Date.now(),
+      seats: { 0: { id: myId, name: myName } },
+      hands: {}, deck: [], discard: [], drawnCard: null, drawnBySeat: null,
+      currentSeat: 0, turnPhase: 'awaitingDraw',
+      selectMode: null, pendingPowerCard: null, kobulCallerSeat: null,
+      lastDiscardedForPause: null, touched: [], log: ['Room dibuat.']
+    };
+    ref.set(initialRoom).then(()=>{
+      roomCode = code; mySeat = 0;
+      attachRoomListener();
+      showScreen('screenLobby');
+    });
+  });
+}
+
+function uiJoinRoom(){
+  if(!firebaseReady){ showHomeError('Firebase belum disetel — lihat peringatan di atas.'); return; }
+  const name = (document.getElementById('inputName').value || '').trim();
+  const code = (document.getElementById('inputJoinCode').value || '').trim().toUpperCase();
+  if(!name){ showHomeError('Isi nama kamu dulu.'); return; }
+  if(!code){ showHomeError('Isi kode room dulu.'); return; }
+  myName = name;
+  const ref = db.ref('rooms/'+code);
+  ref.once('value').then(snap=>{
+    if(!snap.exists()){ showHomeError('Room "'+code+'" gak ketemu.'); return; }
+    const r = snap.val();
+    if(r.status!=='waiting'){ showHomeError('Room ini udah mulai main.'); return; }
+    ref.child('seats').transaction(currentSeats=>{
+      currentSeats = currentSeats || {};
+      let freeSeat = -1;
+      for(let i=0;i<r.maxPlayers;i++){ if(!currentSeats[i]){ freeSeat=i; break; } }
+      if(freeSeat===-1) return; // penuh -> abort transaction
+      currentSeats[freeSeat] = { id: myId, name: myName };
+      return currentSeats;
+    }, (error, committed, snap2)=>{
+      if(error){ showHomeError('Gagal gabung, coba lagi.'); return; }
+      if(!committed){ showHomeError('Room udah penuh.'); return; }
+      const seats = snap2.val();
+      const found = Object.keys(seats).find(k=>seats[k] && seats[k].id===myId);
+      roomCode = code; mySeat = Number(found);
+      attachRoomListener();
+      showScreen('screenLobby');
+    });
+  });
+}
+
+function showHomeError(msg){ document.getElementById('homeError').textContent = msg; }
+
+function uiLeaveToHome(){
+  if(roomRef) roomRef.off();
+  roomRef = null; room = null; roomCode = null; mySeat = null;
+  local = { tempReveal:null, memorizeRevealed:false, memorizeDone:false };
+  document.getElementById('memorizeOverlay').classList.remove('show');
+  document.getElementById('modalOverlay').classList.remove('show');
+  showScreen('screenHome');
+}
+
+function attachRoomListener(){
+  roomRef = db.ref('rooms/'+roomCode);
+  roomRef.on('value', snap=>{
+    room = snap.val();
+    if(!room){ return; }
+    onRoomUpdate();
+  });
+}
+
+/* dipanggil setiap kali ada perubahan data dari Firebase */
+function onRoomUpdate(){
+  if(room.status==='waiting'){
+    renderLobby();
+    showScreen('screenLobby');
+  } else {
+    showScreen('screenBoard');
+    if(!local.memorizeDone){
+      document.getElementById('memorizeOverlay').classList.add('show');
+      renderMemorizeOverlay();
+    }
+    renderBoard();
+    if(room.status==='ended'){
+      renderEndModal();
+    }
+  }
+}
+
+function renderLobby(){
+  document.getElementById('lobbyRoomCode').textContent = roomCode;
+  const seatsHtml = [];
+  for(let i=0;i<room.maxPlayers;i++){
+    const s = room.seats && room.seats[i];
+    const meCls = (s && s.id===myId) ? 'me' : '';
+    seatsHtml.push(`<div class="seat-row ${meCls}"><span>${i===mySeat?'👉 ':''}${s?s.name:'—'}</span><span>${s? (s.id===room.hostId?'HOST':'siap'):'<span class="seat-empty">kosong</span>'}</span></div>`);
+  }
+  document.getElementById('lobbyPlayers').innerHTML = seatsHtml.join('');
+  const filled = Object.keys(room.seats||{}).length;
+  const isHost = room.hostId===myId;
+  const startBtn = document.getElementById('lobbyStartBtn');
+  const hint = document.getElementById('lobbyHint');
+  if(isHost){
+    startBtn.style.display = 'inline-block';
+    startBtn.disabled = filled<2;
+    hint.textContent = filled<2 ? 'Nunggu minimal 1 pemain lagi buat gabung...' : 'Semua siap? Klik "Mulai Main" kalau udah cukup.';
+  } else {
+    startBtn.style.display = 'none';
+    hint.textContent = 'Nunggu host mulai permainan...';
+  }
+}
+
+/* ======================================================================
+   MULAI GAME (host)
+   ====================================================================== */
+function uiStartGame(){
+  if(room.hostId!==myId) return;
+  const filled = Object.keys(room.seats||{}).map(Number);
+  if(filled.length<2) return;
+  const deck = shuffle(buildDeck());
+  const hands = {};
+  filled.forEach(seat=>{ hands[seat] = deck.splice(0,4); });
+  patch({
+    status: 'playing',
+    hands: hands,
+    deck: deck,
+    discard: [],
+    drawnCard: null, drawnBySeat: null,
+    currentSeat: filled.sort((a,b)=>a-b)[0],
+    turnPhase: 'awaitingDraw',
+    selectMode: null, pendingPowerCard: null, kobulCallerSeat: null,
+    lastDiscardedForPause: null, touched: [],
+    log: appendLog(room.log, 'Kartu dibagikan! Semua orang intip 2 kartu bawahnya sendiri dulu.')
+  });
+}
+
+/* ---------------- Memorize phase (murni lokal per device) ---------------- */
+function renderMemorizeOverlay(){
+  const box = document.getElementById('memorizeCards');
+  const btn = document.getElementById('memorizeBtn');
+  const txt = document.getElementById('memorizeText');
+  if(!local.memorizeRevealed){
+    box.innerHTML = '';
+    btn.style.display = 'inline-block';
+    btn.textContent = 'Lihat 2 Kartu Bawah';
+    txt.textContent = 'Klik untuk intip 2 kartu bawahmu sebelum mulai main. Cuma kamu yang bisa lihat ini.';
+  } else {
+    const hand = room.hands[mySeat] || [];
+    box.innerHTML = [2,3].map(slot=>{
+      const c = hand[slot];
+      return c ? `<div class="card">${cardFrontHTML(c)}</div>` : `<div class="card card-empty"></div>`;
+    }).join('');
+    btn.textContent = 'Siap, Mulai Main!';
+    txt.textContent = 'Udah dihafal? Klik kalau udah siap main.';
+  }
+}
+function onMemorizeClick(){
+  if(!local.memorizeRevealed){
+    local.memorizeRevealed = true;
+    renderMemorizeOverlay();
+  } else {
+    local.memorizeDone = true;
+    document.getElementById('memorizeOverlay').classList.remove('show');
+    renderBoard();
+  }
+}
+
+/* ======================================================================
+   GAME ACTIONS
+   ====================================================================== */
+function isMyTurn(){ return room && room.currentSeat===mySeat; }
+
+function onDrawPileClick(){
+  if(!room || room.status!=='playing') return;
+  if(room.turnPhase!=='awaitingDraw') return;
+  if(!isMyTurn()) return;
+  myDraw();
+}
+
+function myDraw(){
+  if(!roomRef) return;
+  db.ref('rooms/'+roomCode+'/deck').transaction(currentDeck=>{
+    if(!currentDeck || !currentDeck.length) return currentDeck; // ditangani di bawah
+    return currentDeck.slice(0, currentDeck.length-1);
+  }, (error, committed, snap)=>{
+    if(error || !committed) return;
+    const newDeck = snap.val() || [];
+    // cari kartu yang barusan diambil dengan bandingin ke cache lokal `room.deck` sebelum transaksi
+    const before = (room.deck||[]);
+    let drawn = before.length ? before[before.length-1] : null;
+    if(before.length===0 && (!newDeck || newDeck.length===0)){
+      // deck emang udah kosong dari awal -> reshuffle dari buangan
+      reshuffleFromDiscardThenDraw();
+      return;
+    }
+    if(drawn===null) return;
+    patch({
+      drawnCard: drawn, drawnBySeat: mySeat, turnPhase: 'drawn',
+      log: appendLog(room.log, seatName(room, mySeat)+' mengambil kartu dari tumpukan.')
+    });
+  });
+}
+
+function reshuffleFromDiscardThenDraw(){
+  const discard = (room.discard||[]).slice();
+  if(discard.length<=1){
+    // gak ada yang bisa dikocok ulang, bikin deck darurat baru
+    const fresh = shuffle(buildDeck());
+    patch({ deck: fresh.slice(0,-1), log: appendLog(room.log, 'Tumpukan habis, kartu darurat baru dikocok.') });
+    setTimeout(myDraw, 400);
+    return;
+  }
+  const top = discard.pop();
+  const reshuffled = shuffle(discard);
+  patch({ deck: reshuffled, discard: [top], log: appendLog(room.log, 'Tumpukan habis — buangan dikocok ulang jadi tumpukan baru.') });
+  setTimeout(myDraw, 400);
+}
+
+function mySwapSlot(slot){
+  if(!isMyTurn() || room.turnPhase!=='drawn') return;
+  const hand = normalizeHand(room.hands[mySeat]);
+  const oldCard = hand[slot];
+  const updates = {};
+  updates['hands/'+mySeat+'/'+slot] = room.drawnCard;
+  updates['drawnCard'] = null;
+  updates['drawnBySeat'] = null;
+  if(oldCard){
+    updates['discard'] = [...(room.discard||[]), oldCard];
+    updates['turnPhase'] = 'discardPause';
+    updates['lastDiscardedForPause'] = oldCard;
+    updates['log'] = appendLog(room.log, seatName(room,mySeat)+' menukar kartu di slotnya, kartu lama ('+cardLabel(oldCard)+') masuk buangan.');
+  } else {
+    updates['turnPhase'] = 'awaitingDraw';
+    updates['currentSeat'] = nextSeat();
+    updates['log'] = appendLog(room.log, seatName(room,mySeat)+' mengisi slot kosong dengan kartu yang diambil.');
+    maybeEndRound(updates);
+  }
+  patch(updates);
+}
+
+function myDiscardDirect(){
+  if(!isMyTurn() || room.turnPhase!=='drawn') return;
+  const card = room.drawnCard;
+  const updates = { drawnCard: null, drawnBySeat: null, discard: [...(room.discard||[]), card] };
+  updates['log'] = appendLog(room.log, seatName(room,mySeat)+' membuang '+cardLabel(card)+' langsung.');
+  if(card.power){
+    updates['turnPhase'] = 'power';
+    updates['pendingPowerCard'] = card;
+    updates['selectMode'] = startPowerSelectMode(card.power, mySeat);
+  } else {
+    updates['turnPhase'] = 'discardPause';
+    updates['lastDiscardedForPause'] = card;
+  }
+  patch(updates);
+}
+
+function startPowerSelectMode(type, sourceSeat){
+  if(type==='peekSelf') return { type:'peekSelf', sourceSeat, allow:'own' };
+  if(type==='peekOpponent') return { type:'peekOpponent', sourceSeat, allow:'opp' };
+  if(type==='blindSwap') return { type:'blindSwap', sourceSeat, allow:'any', picks:[] };
+  if(type==='peekSwap') return { type:'peekSwapPeek', sourceSeat, allow:'any' };
+  return null;
+}
+
+function nextSeat(){
+  const seatIds = Object.keys(room.seats||{}).map(Number).sort((a,b)=>a-b);
+  const pos = seatIds.indexOf(room.currentSeat);
+  return seatIds[(pos+1) % seatIds.length];
+}
+
+/* kalau kobul sudah dipanggil & sekarang kembali ke pemanggil -> selesai ronde */
+function maybeEndRound(updates){
+  if(room.kobulCallerSeat!=null && updates.currentSeat===room.kobulCallerSeat){
+    updates.status = 'ended';
+    updates.turnPhase = 'ended';
+  }
+}
+
+function continueAfterPause(){
+  if(!room || room.turnPhase!=='discardPause') return;
+  const updates = { turnPhase:'awaitingDraw', currentSeat: nextSeat(), lastDiscardedForPause: null };
+  maybeEndRound(updates);
+  patch(updates);
+}
+
+/* ---------------- Buang Kartu Kembar (siapa aja boleh coba, rebutan) ---------------- */
+function openMatchAttempt(){
+  if(!room || room.status!=='playing') return;
+  if(room.turnPhase==='drawn' || room.turnPhase==='power') return;
+  if(room.selectMode) return; // udah ada yang klaim
+  if(!topDiscardOf(room)) return;
+  roomRef.child('selectMode').transaction(current=>{
+    if(current) return; // sudah diklaim orang lain -> abort
+    return { type:'matchThrow', bySeat: mySeat };
+  });
+}
+
+function cancelMatchAttempt(){
+  if(!room || !room.selectMode || room.selectMode.type!=='matchThrow') return;
+  if(room.selectMode.bySeat!==mySeat) return;
+  patch({ selectMode: null });
+}
+
+function onCardSlotClick(targetSeat, slot){
+  if(!room || !room.selectMode) return;
+  const sm = room.selectMode;
+
+  if(sm.type==='matchThrow'){
+    if(sm.bySeat!==mySeat) return;
+    const hand = normalizeHand(room.hands[targetSeat]);
+    const card = hand[slot];
+    if(!card) return;
+    const top = topDiscardOf(room);
+    const updates = {};
+    if(top && card.rank===top.rank){
+      updates['hands/'+targetSeat+'/'+slot] = null;
+      updates['discard'] = [...room.discard, card];
+      if(targetSeat===mySeat){
+        updates['selectMode'] = null;
+        updates['log'] = appendLog(room.log, seatName(room,mySeat)+' buang kembar '+cardLabel(card)+' — kena!');
+      } else if(countCardsInHand(room.hands[mySeat])>0){
+        updates['selectMode'] = { type:'giveCard', bySeat: mySeat, targetSeat, targetSlot: slot };
+        updates['log'] = appendLog(room.log, seatName(room,mySeat)+' buang kembar milik '+seatName(room,targetSeat)+' ('+cardLabel(card)+') — kena! Lagi milih kartu ganti.');
+      } else {
+        updates['selectMode'] = null;
+        updates['log'] = appendLog(room.log, seatName(room,mySeat)+' buang kembar milik '+seatName(room,targetSeat)+', tapi tangannya kosong jadi gak ada ganti.');
+      }
+      patch(updates);
+    } else {
+      updates['selectMode'] = null;
+      updates['log'] = appendLog(room.log, seatName(room,mySeat)+' salah nebak kembar! Kena penalti.');
+      patch(updates);
+      setTimeout(()=>{ drawPenaltyCard(mySeat); }, 300);
+    }
+    return;
+  }
+
+  if(sm.type==='giveCard'){
+    if(sm.bySeat!==mySeat) return;
+    if(targetSeat!==mySeat) return;
+    const hand = normalizeHand(room.hands[mySeat]);
+    const card = hand[slot];
+    if(!card) return;
+    const updates = {};
+    updates['hands/'+mySeat+'/'+slot] = null;
+    updates['hands/'+sm.targetSeat+'/'+sm.targetSlot] = card;
+    updates['selectMode'] = null;
+    updates['log'] = appendLog(room.log, seatName(room,mySeat)+' kasih salah satu kartunya diam-diam ke '+seatName(room,sm.targetSeat)+' menggantikan kartu yang dibuang.');
+    patch(updates);
+    return;
+  }
+
+  if(sm.sourceSeat===undefined) return;
+  if(sm.sourceSeat!==mySeat) return; // cuma yang lagi pegang power ini yang boleh klik
+
+  if(sm.type==='peekSelf'){
+    if(targetSeat!==mySeat) return;
+    localPeekThenContinue(targetSeat, slot, ()=>{ patch({ selectMode:null, turnPhase:'discardPause', lastDiscardedForPause: room.pendingPowerCard }); });
+    return;
+  }
+  if(sm.type==='peekOpponent'){
+    if(targetSeat===mySeat) return;
+    localPeekThenContinue(targetSeat, slot, ()=>{ patch({ selectMode:null, turnPhase:'discardPause', lastDiscardedForPause: room.pendingPowerCard }); });
+    return;
+  }
+  if(sm.type==='blindSwap'){
+    const newPicks = (sm.picks||[]).concat([{ownerSeat:targetSeat, slot}]);
+    if(newPicks.length<2){
+      patch({ ['selectMode/picks']: newPicks });
+      return;
+    }
+    const [a,b] = newPicks;
+    if(a.ownerSeat===b.ownerSeat && a.slot===b.slot){
+      patch({ ['selectMode/picks']: [] });
+      return;
+    }
+    doBlindSwapAndContinue(a,b);
+    return;
+  }
+  if(sm.type==='peekSwapPeek'){
+    localPeekThenContinue(targetSeat, slot, ()=>{
+      showYesNo('Nilainya udah keliatan. Mau ditukar (tanpa lihat) sama kartu lain?', (yes)=>{
+        if(yes){
+          patch({ selectMode: { type:'peekSwapTarget', sourceSeat: mySeat, peeked:{ownerSeat:targetSeat, slot}, allow:'any' } });
+        } else {
+          patch({ selectMode:null, turnPhase:'discardPause', lastDiscardedForPause: room.pendingPowerCard });
+        }
+      });
+    });
+    return;
+  }
+  if(sm.type==='peekSwapTarget'){
+    if(sm.peeked && sm.peeked.ownerSeat===targetSeat && sm.peeked.slot===slot) return;
+    doBlindSwapAndContinue(sm.peeked, {ownerSeat:targetSeat, slot});
+    return;
+  }
+}
+
+function doBlindSwapAndContinue(a,b){
+  const pa = normalizeHand(room.hands[a.ownerSeat]);
+  const pb = normalizeHand(room.hands[b.ownerSeat]);
+  const cardA = pa[a.slot];
+  const cardB = pb[b.slot];
+  const updates = {};
+  updates['hands/'+a.ownerSeat+'/'+a.slot] = cardB || null;
+  updates['hands/'+b.ownerSeat+'/'+b.slot] = cardA || null;
+  updates['selectMode'] = null;
+  updates['turnPhase'] = 'discardPause';
+  updates['lastDiscardedForPause'] = room.pendingPowerCard;
+  const involvesMe = (a.ownerSeat===mySeat || b.ownerSeat===mySeat);
+  if(involvesMe){
+    const mySlot = a.ownerSeat===mySeat ? a.slot : b.slot;
+    updates['log'] = appendLog(room.log, '⚠️ Kartu KAMU di posisi '+slotLabel(mySlot)+' baru ditukar diam-diam antara '+seatName(room,a.ownerSeat)+' & '+seatName(room,b.ownerSeat)+'.');
+    updates['touched'] = addTouched(room.touched, [ {seat:a.ownerSeat, slot:a.slot}, {seat:b.ownerSeat, slot:b.slot} ]);
+  } else {
+    updates['log'] = appendLog(room.log, 'Kartu ditukar diam-diam antara '+seatName(room,a.ownerSeat)+' & '+seatName(room,b.ownerSeat)+'.');
+  }
+  patch(updates);
+}
+
+function addTouched(current, entries){
+  const now = Date.now();
+  const arr = (current||[]).filter(t=>t.touchedUntil>now);
+  entries.forEach(e=> arr.push({ seat:e.seat, slot:e.slot, touchedUntil: now+4000 }));
+  return arr;
+}
+
+function skipBlindSwap(){
+  if(!room || !room.selectMode || room.selectMode.type!=='blindSwap') return;
+  if(room.selectMode.sourceSeat!==mySeat) return;
+  patch({
+    selectMode: null, turnPhase:'discardPause', lastDiscardedForPause: room.pendingPowerCard,
+    log: appendLog(room.log, seatName(room,mySeat)+' memilih tidak menukar (lewati tukar buta).')
+  });
+}
+
+/* peek murni lokal: cuma device yang lagi peek ini yang render kartu depannya sebentar */
+function localPeekThenContinue(seat, slot, cb){
+  local.tempReveal = { seat, slot };
+  renderBoard();
+  setTimeout(()=>{
+    local.tempReveal = null;
+    cb();
+  }, 2200);
+}
+
+let yesNoCallback = null;
+function showYesNo(text, cb){
+  yesNoCallback = cb;
+  const box = document.getElementById('modalBox');
+  box.innerHTML = `<h3>Keputusan</h3><p>${text}</p>
+    <div class="actions">
+      <button class="btn-main" onclick="resolveYesNo(true)">Ya, tukar</button>
+      <button class="btn-ghost" onclick="resolveYesNo(false)">Tidak</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function resolveYesNo(val){
+  document.getElementById('modalOverlay').classList.remove('show');
+  const cb = yesNoCallback; yesNoCallback = null;
+  if(cb) cb(val);
+}
+
+function drawPenaltyCard(seat){
+  db.ref('rooms/'+roomCode+'/deck').transaction(currentDeck=>{
+    if(!currentDeck || !currentDeck.length) return currentDeck;
+    return currentDeck.slice(0, currentDeck.length-1);
+  }, (error, committed, snap)=>{
+    if(error || !committed) return;
+    const before = (room.deck||[]);
+    if(!before.length) return;
+    const penalty = before[before.length-1];
+    const hand = normalizeHand(room.hands[seat]);
+    const emptyIdx = findEmptySlot(hand);
+    const updates = {};
+    if(emptyIdx!==-1){ updates['hands/'+seat+'/'+emptyIdx] = penalty; }
+    else { updates['hands/'+seat+'/'+hand.length] = penalty; }
+    patch(updates);
+  });
+}
+
+/* ---------------- Panggil Kobul (kapan aja) ---------------- */
+function callKobul(){
+  if(!room || room.status!=='playing') return;
+  if(room.kobulCallerSeat!=null) return;
+  const updates = { kobulCallerSeat: mySeat, log: appendLog(room.log, '📣 '+seatName(room,mySeat)+' memanggil "KOBUL"! Semua pemain dapet 1 giliran terakhir.') };
+  if(room.currentSeat===mySeat && room.turnPhase==='awaitingDraw'){
+    updates.currentSeat = nextSeat();
+    updates.turnPhase = 'awaitingDraw';
+  }
+  patch(updates);
+}
+
+/* ======================================================================
+   RENDER BOARD
+   ====================================================================== */
+function isTouchedNow(seat, slot){
+  const now = Date.now();
+  return (room.touched||[]).some(t=>t.seat===seat && t.slot===slot && t.touchedUntil>now);
+}
+function isRevealedLocally(seat, slot){
+  return local.tempReveal && local.tempReveal.seat===seat && local.tempReveal.slot===slot;
+}
+function isSelectableSlot(seat, slot){
+  const sm = room.selectMode;
+  if(!sm) return false;
+  const hand = room.hands[seat];
+  if(!hand || !hand[slot]) return false;
+  if(sm.type==='matchThrow') return sm.bySeat===mySeat;
+  if(sm.type==='giveCard') return sm.bySeat===mySeat && seat===mySeat;
+  if(sm.sourceSeat!==mySeat) return false;
+  if(sm.type==='peekSwapTarget'){
+    if(sm.peeked && sm.peeked.ownerSeat===seat && sm.peeked.slot===slot) return false;
+    return true;
+  }
+  if(sm.allow==='own') return seat===sm.sourceSeat;
+  if(sm.allow==='opp') return seat!==sm.sourceSeat;
+  if(sm.allow==='any') return true;
+  return false;
+}
+function isPicked(seat, slot){
+  const sm = room.selectMode;
+  if(!sm || sm.type!=='blindSwap' || !sm.picks) return false;
+  return sm.picks.some(p=>p.ownerSeat===seat && p.slot===slot);
+}
+
+function renderCardCell(seat, slot, card, big){
+  const touchedCls = isTouchedNow(seat, slot) ? ' touched' : '';
+  if(!card){
+    const clickable = (room.turnPhase==='drawn' && isMyTurn() && seat===mySeat);
+    const onclick = clickable ? `onclick="mySwapSlot(${slot})"` : '';
+    return `<div class="card card-empty ${clickable?'clickable':''}${touchedCls}" ${onclick}></div>`;
+  }
+  const revealed = isRevealedLocally(seat, slot) || (room.status==='ended');
+  const picked = isPicked(seat, slot);
+  let onclick = '';
+  if(room.turnPhase==='drawn' && isMyTurn() && seat===mySeat){
+    onclick = `onclick="mySwapSlot(${slot})"`;
+  } else if(isSelectableSlot(seat, slot)){
+    onclick = `onclick="onCardSlotClick(${seat},${slot})"`;
+  }
+  const clickableClass = onclick ? 'clickable' : '';
+  return `<div class="card ${clickableClass} ${picked?'selected':''}${touchedCls}" ${onclick}>${revealed?cardFrontHTML(card):'<div class="card-back"></div>'}</div>`;
+}
+
+function renderBoard(){
+  if(!room) return;
+  const seatIds = Object.keys(room.seats||{}).map(Number).sort((a,b)=>a-b);
+
+  // opponents (semua kecuali diri sendiri)
+  const oppRow = document.getElementById('opponentsRow');
+  oppRow.innerHTML = seatIds.filter(s=>s!==mySeat).map(seat=>{
+    const hand = room.hands[seat] || [];
+    const active = seat===room.currentSeat ? 'active-turn':'';
+    const cards = [0,1,2,3].map(slot=> renderCardCell(seat, slot, hand[slot], false)).join('');
+    return `<div class="opp ${active}"><div class="opp-name">${seatName(room,seat)}${seat===room.kobulCallerSeat?' 📣':''}</div><div class="opp-cards">${cards}</div></div>`;
+  }).join('');
+
+  document.getElementById('drawCountLabel').textContent = 'Tumpuk ('+((room.deck||[]).length)+')';
+
+  const discardEl = document.getElementById('discardTop');
+  if(room.discard && room.discard.length){
+    discardEl.innerHTML = `<div class="card">${cardFrontHTML(room.discard[room.discard.length-1])}</div>`;
+  } else {
+    discardEl.innerHTML = `<div class="card card-back" style="opacity:.3"></div>`;
+  }
+
+  const drawnZone = document.getElementById('drawnZone');
+  if(room.turnPhase==='drawn' && room.drawnCard && room.drawnBySeat===mySeat){
+    drawnZone.innerHTML = `<div class="card drawn-highlight">${cardFrontHTML(room.drawnCard)}</div><div class="prompt-text" style="margin:0">Kartu diambil</div>`;
+  } else if(room.turnPhase==='drawn' && room.drawnBySeat!=null){
+    drawnZone.innerHTML = `<div class="card card-back"></div><div class="prompt-text" style="margin:0">Kartu diambil</div>`;
+  } else {
+    drawnZone.innerHTML = '';
+  }
+
+  document.getElementById('playerLabel').textContent = 'KAMU ('+myName+')';
+  const myHand = room.hands[mySeat] || [];
+  document.getElementById('playerArea').className = 'player-area ' + (room.currentSeat===mySeat?'active-turn':'');
+  document.getElementById('playerCards').innerHTML = [0,1,2,3].map(slot=> renderCardCell(mySeat, slot, myHand[slot], true)).join('');
+
+  renderPromptAndActions();
+  document.getElementById('logPanel').innerHTML = (room.log||[]).map(l=>'&gt; '+l).join('<br>');
+}
+
+function renderPromptAndActions(){
+  const promptEl = document.getElementById('promptText');
+  const actionsEl = document.getElementById('actionButtons');
+  let prompt = ''; let actions = '';
+  const sm = room.selectMode;
+
+  if(sm && sm.type==='matchThrow'){
+    if(sm.bySeat===mySeat){
+      prompt = 'Pilih kartu siapa aja (punyamu atau lawan) yang menurutmu sama dengan kartu paling atas di buangan ('+cardLabel(topDiscardOf(room))+').';
+      actions = `<button class="btn-ghost" onclick="cancelMatchAttempt()">Batal</button>`;
+    } else {
+      prompt = seatName(room, sm.bySeat)+' sedang coba buang kembar...';
+    }
+  } else if(sm && sm.type==='giveCard'){
+    prompt = sm.bySeat===mySeat
+      ? 'Match kena! Pilih salah satu kartumu untuk dikasih diam-diam ke '+seatName(room,sm.targetSeat)+'.'
+      : seatName(room,sm.bySeat)+' lagi milih kartu buat dikasih ke '+seatName(room,sm.targetSeat)+'...';
+  } else if(room.turnPhase==='discardPause'){
+    const label = room.lastDiscardedForPause ? cardLabel(room.lastDiscardedForPause) : '';
+    prompt = 'Kartu baru dibuang: '+label+'. Ada yang kembar? Cek sekarang sebelum lanjut.';
+    actions = `<button class="btn-ghost" onclick="openMatchAttempt()">🎯 Buang Kartu Kembar</button>
+      <button class="btn-main" onclick="continueAfterPause()">Lanjut</button>`;
+  } else if(room.turnPhase==='awaitingDraw'){
+    if(isMyTurn()){
+      prompt = 'Giliran kamu. Ambil kartu dari tumpukan.';
+      actions = `<button class="btn-main" onclick="myDraw()">Ambil Kartu</button>`;
+    } else {
+      prompt = seatName(room, room.currentSeat)+' sedang jalan...';
+    }
+  } else if(room.turnPhase==='drawn'){
+    if(isMyTurn()){
+      prompt = 'Klik salah satu kartumu buat ditukar, atau buang langsung.';
+      actions = `<button class="btn-ghost" onclick="myDiscardDirect()">Buang Langsung</button>`;
+    } else {
+      prompt = seatName(room, room.currentSeat)+' sedang mutusin mau tukar atau buang...';
+    }
+  } else if(room.turnPhase==='power' && sm){
+    if(sm.sourceSeat===mySeat){
+      if(sm.type==='peekSelf') prompt = 'Pilih salah satu kartumu untuk diintip.';
+      else if(sm.type==='peekOpponent') prompt = 'Pilih salah satu kartu lawan untuk diintip.';
+      else if(sm.type==='blindSwap'){
+        prompt = 'Pilih 2 kartu (siapa saja) untuk ditukar tanpa dilihat. ('+((sm.picks||[]).length)+'/2)';
+        actions = `<button class="btn-ghost" onclick="skipBlindSwap()">Lewati, Jangan Tukar</button>`;
+      }
+      else if(sm.type==='peekSwapPeek') prompt = 'Pilih 1 kartu (punyamu ATAU lawan) untuk diintip dulu.';
+      else if(sm.type==='peekSwapTarget') prompt = 'Kartu udah diintip. Pilih kartu mana aja buat ditukar tanpa dilihat.';
+    } else {
+      prompt = seatName(room, sm.sourceSeat)+' sedang pakai kekuatan kartu...';
+    }
+  } else if(room.turnPhase==='ended'){
+    prompt = 'Ronde selesai! Lihat hasilnya.';
+  }
+
+  const canAttemptMatch = !sm && room.turnPhase!=='drawn' && room.turnPhase!=='power' && room.turnPhase!=='discardPause' && topDiscardOf(room) && room.status==='playing';
+  if(canAttemptMatch){
+    actions += `<button class="btn-ghost" onclick="openMatchAttempt()">Buang Kartu Kembar</button>`;
+  }
+  if(room.status==='playing' && room.kobulCallerSeat==null){
+    actions += `<button class="btn-ghost" onclick="callKobul()" style="border-color:var(--gold); color:var(--gold);">📣 Panggil "Kobul"</button>`;
+  }
+
+  promptEl.textContent = prompt;
+  actionsEl.innerHTML = actions;
+}
+
+function renderEndModal(){
+  const seatIds = Object.keys(room.seats||{}).map(Number).sort((a,b)=>a-b);
+  const totals = seatIds.map(seat=>{
+    const hand = normalizeHand(room.hands[seat]);
+    const total = hand.reduce((a,c)=>a+(c?c.value:0),0);
+    return { seat, name: seatName(room,seat), total, hand };
+  });
+  totals.sort((a,b)=>a.total-b.total);
+  const minTotal = totals[0].total;
+  const rows = totals.map(t=>{
+    const cards = t.hand.filter(c=>c).map(c=>cardLabel(c)).join(', ');
+    const win = t.total===minTotal;
+    return `<div class="row ${win?'winner':''}"><span>${t.name}${win?' 🏆':''} — ${cards}</span><span>${t.total}</span></div>`;
+  }).join('');
+  const callerName = room.kobulCallerSeat!=null ? seatName(room, room.kobulCallerSeat) : '—';
+  const box = document.getElementById('modalBox');
+  const isHost = room.hostId===myId;
+  box.innerHTML = `<h3>Hasil Ronde</h3>
+    <p style="margin-top:-6px;">"${callerName}" yang memanggil Kobul.</p>
+    <div class="results-list">${rows}</div>
+    ${isHost ? '<button class="btn-main" onclick="uiPlayAgain()">Main Lagi</button>' : '<p style="font-size:12px; color:#888;">Nunggu host buat mulai ronde baru...</p>'}`;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function uiPlayAgain(){
+  if(room.hostId!==myId) return;
+  local.memorizeRevealed = false;
+  local.memorizeDone = false;
+  document.getElementById('modalOverlay').classList.remove('show');
+  patch({ status:'waiting', hands:{}, deck:[], discard:[], drawnCard:null, drawnBySeat:null,
+    selectMode:null, pendingPowerCard:null, kobulCallerSeat:null, lastDiscardedForPause:null, touched:[],
+    log: appendLog(room.log, 'Kembali ke lobby buat ronde baru.') });
+}
+</script>
+</body>
+</html>
